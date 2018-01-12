@@ -85,7 +85,7 @@ set[Message] eval((Dicto)`<Rule* rules>`, M3 m3)
 M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework|);
   
 set[Message] eval(Rule rule, M3 m3) {
-println("GeiAAAAAAAAAAAAA");
+
   set[Message] msgs = {};
   
   switch (rule) {
