@@ -1,0 +1,21 @@
+npc cannot depend sprite
+npc cannot depend ui
+level cannot depend sprite
+level cannot depend ui
+game cannot depend sprite
+game cannot depend ui
+
+
+ui must depend sprite
+
+ui must depend npc
+ui must depend level
+ui must depend game
+ui must depend board
+
+
+
+sprite cannot depend npc
+sprite cannot depend level
+sprite cannot depend game
+
