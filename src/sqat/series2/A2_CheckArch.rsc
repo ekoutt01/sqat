@@ -113,10 +113,67 @@ Questions
 */
 
 
+set[str] importsAll(loc locFile){
+	set[str] files = {};
+	start[CompilationUnit] parse_tree = parseJava(locFile);
+	visit(parse_tree){
+		case (ImportDec)`import <TypeName t> ;` : files += unparse(t);
+	};
+	return files;
+}
 
-set[Message] checkNotDependOn(rel [loc src,loc name] dependencies, set[loc] modelClasses, Entity e1, Entity e2){
+
+
+set[Message] checkMustImport(M3 model, Entity e1, Entity e2){
 	set[Message] msgs = {};
- 	count=0;
+
+
+	loc entity1=|java+class:///| + "nl/tudelft/jpacman/" + replaceFirst("<e1>",".","/");	
+	loc package=|java+package:///| + replaceAll("<e1>", ".", "/");
+	loc packageTo=|java+package:///| + replaceAll("<e2>", ".", "/");
+			
+	set[loc] files ={};
+	for (importsFile<-model.containment[package]){
+		files+=importsFile.scheme=="java+compilationUnit";
+	}	
+	imports ={};
+	for(file<-files){
+		imports+=importsAll(file);
+	}
+	for(i<-imports){
+		if(!contains(i, replaceAll(packageTo.path, "/", ".")[1..]))
+			return error("<e1> must import <e2>", package);
+		}
+	return msgs;
+}
+
+
+set[Message] checkCannotImport(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};
+
+
+	loc entity1=|java+class:///| + "nl/tudelft/jpacman/" + replaceFirst("<e1>",".","/");	
+	loc package=|java+package:///| + replaceAll("<e1>", ".", "/");
+	loc packageTo=|java+package:///| + replaceAll("<e2>", ".", "/");
+			
+	set[loc] files ={};
+	for (importsFile<-model.containment[package]){
+		files+=importsFile.scheme=="java+compilationUnit";
+	}	
+	imports ={};
+	for(file<-files){
+		imports+=importsAll(file);
+	}
+	for(i<-imports){
+		if(contains(i, replaceAll(packageTo.path, "/", ".")[1..]))
+			return error("<e1> cannot import <e2>", package);
+		}
+	return msgs;
+}
+
+
+set[Message] checkCannotDepend(rel [loc src,loc name] dependencies, set[loc] modelClasses, Entity e1, Entity e2){
+	set[Message] msgs = {};
 	for (i<-modelClasses){
 		loc x=i.parent;
 		str k=x.file;
@@ -124,9 +181,7 @@ set[Message] checkNotDependOn(rel [loc src,loc name] dependencies, set[loc] mode
 		if (k==c){
 			for (index<-dependencies){
 				if (contains("<index<src>>","<k>") && contains("<index<name>>","<e2>")){
-					count+=1;
 					msgs+= error("<e1> cannot depend <e2>",index<src>);
-					//println("<index<src>>,  <k>,  <index<name>>,  <e2>");
 				}
 			}			
 		}
@@ -134,8 +189,7 @@ set[Message] checkNotDependOn(rel [loc src,loc name] dependencies, set[loc] mode
 	return msgs;
 }
 
-
-set[Message] checkControllerDepend (rel [loc src,loc name] dependencies, set[loc] modelClasses, Entity e1, Entity e2){
+set[Message] checkMustDepend (rel [loc src,loc name] dependencies, set[loc] modelClasses, Entity e1, Entity e2){
 	set[Message] msgs = {};
  	count=0;
  	loc folder;
@@ -148,13 +202,158 @@ set[Message] checkControllerDepend (rel [loc src,loc name] dependencies, set[loc
 			for (index<-dependencies){
 				if (contains("<index<src>>","<k>") && contains("<index<name>>","<e2>")){
 					count+=1;
-					//println("<index<src>>,  <k>,  <index<name>>,  <e2>");				
 				}
 			}			
 		}
 	}
 	if (count==0){
 		msgs+= error("<e1> must depend <e2>",folder);
+	}
+	return msgs;
+}
+
+set[Message] checkCanOnlyDepend(rel [loc src,loc name] dependencies, set[loc] modelClasses, Entity e1, Entity e2){
+	set[Message] msgs = {};
+ 	count=0;
+ 	loc folder;
+	for (i<-modelClasses){
+		loc x=i.parent;
+		str k=x.file;
+		str c= "<e1>";
+		if (k==c){
+		folder=i;
+			for (index<-dependencies){
+				if (contains("<index<src>>","<k>") && contains("<index<name>>","<e2>")){
+					count+=1;
+				}
+			}			
+		}
+	}
+	if (count>1){
+		msgs+= error("<e1> can only depend <e2>",folder);
+	}
+	return msgs;
+}
+
+set[Message] checkMustInvoke(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};
+ 	count=0;
+ 	loc folder;
+ 	methods=model.methodInvocation;
+ 	entity1 = "/" + replaceAll(replaceAll("<e1>", ".", "/"), "::", "/");
+	entity2 = "/" + replaceAll(replaceAll("<e2>", ".", "/"), "::", "/");
+	for (i<-methods){	
+		folder=	i.from;
+		if (contains(i.from.path,"<entity1>") && contains(i.to.path,"<entity2>")){
+			count+=1;
+		}
+	}			
+		
+	if (count==0){
+		msgs+= error("<e1> must invoke <e2>",folder);
+	}
+	return msgs;
+}
+
+set[Message] checkCannotInvoke(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};
+ 	methods=model.methodInvocation;
+ 	entity1 = "/" + replaceAll(replaceAll("<e1>", ".", "/"), "::", "/");
+	entity2 = "/" + replaceAll(replaceAll("<e2>", ".", "/"), "::", "/");
+	for (i<-methods){	
+		if (contains(i.from.path,"<entity1>") && contains(i.to.path,"<entity2>")){
+			msgs+= error("<e1> cannot invoke <e2>",i.from);
+		}
+	}			
+	return msgs;
+}
+
+set[Message] checkCanOnlyInvoke(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};
+ 	count=0;
+ 	loc folder;
+ 	methods=model.methodInvocation;
+ 	entity1 = "/" + replaceAll(replaceAll("<e1>", ".", "/"), "::", "/");
+	entity2 = "/" + replaceAll(replaceAll("<e2>", ".", "/"), "::", "/");
+	for (i<-methods){	
+		folder=	i.from;
+		if (contains(i.from.path,"<entity1>") && contains(i.to.path,"<entity2>")){
+			count+=1;
+		}
+	}			
+		
+	if (count>1){
+		msgs+= error("<e1> can only invoke <e2>",folder);
+	}
+	return msgs;
+}
+
+
+set[Message] checkMustInherit(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};	
+	modelClasses=classes(m3);
+	dependencies=model.extends;
+	count=0;
+ 	loc folder;
+	for (i<-modelClasses){
+		loc x=i.parent;
+		str k=x.file;
+		str c= "<e1>";
+		if (k==c){
+		folder=i;
+			for (index<-dependencies){
+				if (contains("<index<from>>","<k>") && contains("<index<to>>","<e2>")){
+					count+=1;
+				}
+			}			
+		}
+	}
+	if (count==0){
+		msgs+= error("<e1> must inherit <e2>",folder);
+	}
+	return msgs;
+}
+
+set[Message] checkCanOnlyInherit(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};	
+	modelClasses=classes(m3);
+	dependencies=model.extends;
+	count=0;
+ 	loc folder;
+	for (i<-modelClasses){
+		loc x=i.parent;
+		str k=x.file;
+		str c= "<e1>";
+		if (k==c){
+		folder=i;
+			for (index<-dependencies){
+				if (contains("<index<from>>","<k>") && contains("<index<to>>","<e2>")){
+					count+=1;
+				}
+			}			
+		}
+	}
+	if (count>1){
+		msgs+= error("<e1> can only inherit <e2>",folder);
+	}
+	return msgs;
+}
+
+set[Message] checkCannotInherit(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};	
+	modelClasses=classes(m3);
+	dependencies=model.extends;
+	for (i<-modelClasses){
+		loc x=i.parent;
+		str k=x.file;
+		str c= "<e1>";
+		if (k==c){
+			for (index<-dependencies){
+				if (contains("<index<from>>","<k>") && contains("<index<to>>","<e2>")){
+					msgs+= error("<e1> cannot inherit <e2>",index<from>);
+				}
+			}			
+		}
 	}
 	return msgs;
 }
@@ -168,19 +367,32 @@ set[Message] eval((Dicto)`<Rule* rules>`, M3 m3)
 M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework|);
   
 set[Message] eval(Rule rule, M3 m3) {
-  set[Message] msgs = {};
+	set[Message] msgs = {};
   	rel[loc src,loc name] dependencies={};
  	modelClasses=classes(m3);
  	mu=m3.uses;
- 		for (classes<-mu){
- 			if (classes<name>.scheme=="java+class"){
-				dependencies+=classes;
- 			}
+ 	for (classes<-mu){
+ 		if (classes<name>.scheme=="java+class"){
+			dependencies+=classes;
  		}
+ 	}
   
   switch (rule) {
-  case (Rule)`<Entity e1> cannot depend <Entity e2>`: msgs+=checkNotDependOn(dependencies,modelClasses,e1,e2);
-  case (Rule)`<Entity e1> must depend <Entity e2>`: msgs+=checkControllerDepend(dependencies,modelClasses,e1,e2);
+	case (Rule)`<Entity e1> must import <Entity e2>`: msgs += checkMustImport(m3,e1,e2);
+    case (Rule)`<Entity e1> can only import <Entity e2>`: msgs += checkCanOnlyImport(m3,e1,e2);
+    case (Rule)`<Entity e1> cannot import <Entity e2>`: msgs += checkCannotImport(m3,e1,e2);
+    case (Rule)`<Entity e1> must instantiate <Entity e2>`:  msgs += checkMustInstantiate(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> cannot instantiate <Entity e2>`: msgs += checkCannotInstantiate(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> can only instantiate <Entity e2>`: msgs += checkCanOnlyInstantiate(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> must depend <Entity e2>`: msgs += checkMustDepend(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> cannot depend <Entity e2>`: msgs += checkCannotDepend(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> can only depend <Entity e2>`: msgs += checkCanOnlyDepend(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> must invoke <Entity e2>`: msgs += checkMustInvoke(m3,e1,e2);
+    case (Rule)`<Entity e1> cannot invoke <Entity e2>`: msgs += checkCannotInvoke(m3,e1,e2);
+    case (Rule)`<Entity e1> can only invoke <Entity e2>`: msgs += checkCanOnlyInvoke(m3,e1,e2);
+    case (Rule)`<Entity e1> must inherit <Entity e2>`: msgs += checkMustInherit(m3,e1,e2);
+    case (Rule)`<Entity e1> cannot inherit <Entity e2>`: msgs += checkCannotInherit(m3,e1,e2);
+    case (Rule)`<Entity e1> can only inherit <Entity e2>`: msgs += checkCanOnlyInherit(m3,e1,e2);  
 }
   
   return msgs;
