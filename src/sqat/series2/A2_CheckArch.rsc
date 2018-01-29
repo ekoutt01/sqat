@@ -113,65 +113,6 @@ Questions
 */
 
 
-set[str] importsAll(loc locFile){
-	set[str] files = {};
-	start[CompilationUnit] parse_tree = parseJava(locFile);
-	visit(parse_tree){
-		case (ImportDec)`import <TypeName t> ;` : files += unparse(t);
-	};
-	return files;
-}
-
-
-
-set[Message] checkMustImport(M3 model, Entity e1, Entity e2){
-	set[Message] msgs = {};
-
-
-	loc entity1=|java+class:///| + "nl/tudelft/jpacman/" + replaceFirst("<e1>",".","/");	
-	loc package=|java+package:///| + replaceAll("<e1>", ".", "/");
-	loc packageTo=|java+package:///| + replaceAll("<e2>", ".", "/");
-			
-	set[loc] files ={};
-	for (importsFile<-model.containment[package]){
-		files+=importsFile.scheme=="java+compilationUnit";
-	}	
-	imports ={};
-	for(file<-files){
-		imports+=importsAll(file);
-	}
-	for(i<-imports){
-		if(!contains(i, replaceAll(packageTo.path, "/", ".")[1..]))
-			return error("<e1> must import <e2>", package);
-		}
-	return msgs;
-}
-
-
-set[Message] checkCannotImport(M3 model, Entity e1, Entity e2){
-	set[Message] msgs = {};
-
-
-	loc entity1=|java+class:///| + "nl/tudelft/jpacman/" + replaceFirst("<e1>",".","/");	
-	loc package=|java+package:///| + replaceAll("<e1>", ".", "/");
-	loc packageTo=|java+package:///| + replaceAll("<e2>", ".", "/");
-			
-	set[loc] files ={};
-	for (importsFile<-model.containment[package]){
-		files+=importsFile.scheme=="java+compilationUnit";
-	}	
-	imports ={};
-	for(file<-files){
-		imports+=importsAll(file);
-	}
-	for(i<-imports){
-		if(contains(i, replaceAll(packageTo.path, "/", ".")[1..]))
-			return error("<e1> cannot import <e2>", package);
-		}
-	return msgs;
-}
-
-
 set[Message] checkCannotDepend(rel [loc src,loc name] dependencies, set[loc] modelClasses, Entity e1, Entity e2){
 	set[Message] msgs = {};
 	for (i<-modelClasses){
@@ -289,6 +230,64 @@ set[Message] checkCanOnlyInvoke(M3 model, Entity e1, Entity e2){
 }
 
 
+set[str] importsAll(loc locFile){
+	set[str] files = {};
+	start[CompilationUnit] parse_tree = parseJava(locFile);
+	visit(parse_tree){
+		case (ImportDec)`import <TypeName t> ;` : files += unparse(t);
+	};
+	return files;
+}
+
+
+
+set[Message] checkMustImport(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};
+
+
+	loc entity1=|java+class:///| + "nl/tudelft/jpacman/" + replaceFirst("<e1>",".","/");	
+	loc package=|java+package:///| + replaceAll("<e1>", ".", "/");
+	loc packageTo=|java+package:///| + replaceAll("<e2>", ".", "/");
+			
+	set[loc] files ={};
+	for (importsFile<-model.containment[package]){
+		files+=importsFile.scheme=="java+compilationUnit";
+	}	
+	imports ={};
+	for(file<-files){
+		imports+=importsAll(file);
+	}
+	for(i<-imports){
+		if(!contains(i, replaceAll(packageTo.path, "/", ".")[1..]))
+			return error("<e1> must import <e2>", package);
+		}
+	return msgs;
+}
+
+
+set[Message] checkCannotImport(M3 model, Entity e1, Entity e2){
+	set[Message] msgs = {};
+
+
+	loc entity1=|java+class:///| + "nl/tudelft/jpacman/" + replaceFirst("<e1>",".","/");	
+	loc package=|java+package:///| + replaceAll("<e1>", ".", "/");
+	loc packageTo=|java+package:///| + replaceAll("<e2>", ".", "/");
+			
+	set[loc] files ={};
+	for (importsFile<-model.containment[package]){
+		files+=importsFile.scheme=="java+compilationUnit";
+	}	
+	imports ={};
+	for(file<-files){
+		imports+=importsAll(file);
+	}
+	for(i<-imports){
+		if(contains(i, replaceAll(packageTo.path, "/", ".")[1..]))
+			return error("<e1> cannot import <e2>", package);
+		}
+	return msgs;
+}
+
 set[Message] checkMustInherit(M3 model, Entity e1, Entity e2){
 	set[Message] msgs = {};	
 	modelClasses=classes(m3);
@@ -378,15 +377,15 @@ set[Message] eval(Rule rule, M3 m3) {
  	}
   
   switch (rule) {
-	case (Rule)`<Entity e1> must import <Entity e2>`: msgs += checkMustImport(m3,e1,e2);
-    case (Rule)`<Entity e1> can only import <Entity e2>`: msgs += checkCanOnlyImport(m3,e1,e2);
-    case (Rule)`<Entity e1> cannot import <Entity e2>`: msgs += checkCannotImport(m3,e1,e2);
-    case (Rule)`<Entity e1> must instantiate <Entity e2>`:  msgs += checkMustInstantiate(dependencies,modelClasses,e1,e2);
-    case (Rule)`<Entity e1> cannot instantiate <Entity e2>`: msgs += checkCannotInstantiate(dependencies,modelClasses,e1,e2);
-    case (Rule)`<Entity e1> can only instantiate <Entity e2>`: msgs += checkCanOnlyInstantiate(dependencies,modelClasses,e1,e2);
     case (Rule)`<Entity e1> must depend <Entity e2>`: msgs += checkMustDepend(dependencies,modelClasses,e1,e2);
     case (Rule)`<Entity e1> cannot depend <Entity e2>`: msgs += checkCannotDepend(dependencies,modelClasses,e1,e2);
     case (Rule)`<Entity e1> can only depend <Entity e2>`: msgs += checkCanOnlyDepend(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> must instantiate <Entity e2>`:  msgs += checkMustInstantiate(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> cannot instantiate <Entity e2>`: msgs += checkCannotInstantiate(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> can only instantiate <Entity e2>`: msgs += checkCanOnlyInstantiate(dependencies,modelClasses,e1,e2);
+    case (Rule)`<Entity e1> must import <Entity e2>`: msgs += checkMustImport(m3,e1,e2);
+    case (Rule)`<Entity e1> can only import <Entity e2>`: msgs += checkCanOnlyImport(m3,e1,e2);
+    case (Rule)`<Entity e1> cannot import <Entity e2>`: msgs += checkCannotImport(m3,e1,e2);
     case (Rule)`<Entity e1> must invoke <Entity e2>`: msgs += checkMustInvoke(m3,e1,e2);
     case (Rule)`<Entity e1> cannot invoke <Entity e2>`: msgs += checkCannotInvoke(m3,e1,e2);
     case (Rule)`<Entity e1> can only invoke <Entity e2>`: msgs += checkCanOnlyInvoke(m3,e1,e2);
